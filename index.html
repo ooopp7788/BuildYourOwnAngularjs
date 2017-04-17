@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title></title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="node_modules/angular/angular.js"></script>
+  </head>
+  <body ng-app="app">
+    <div ng-controller="MyController">
+      <input type="text" ng-model="txt" test>
+      <h1>{{parseTxt}}</h1>
+      <pre>{{previewTxt}}</pre>
+    </div>
+    <script>
+      var app = angular.module("app",[]);
+      app.controller("MyController",function($scope, $parse, $interpolate){
+          $scope.$watch('txt', function(newVal, oldVal, scope){
+            if(newVal !== oldVal) {
+              var parseFunc = $parse(newVal);
+              $scope.parseTxt = parseFunc(scope);
+            }
+
+            if(newVal) {
+              var template = $interpolate("<div>" + newVal+ "</div>");
+              $scope.previewTxt = template({txt:$scope.txt});
+            }
+          });
+      });
+
+      app.directive('test',function(){
+        return {
+          require:'?ngModel' ,
+          link:function(scope,ele,attrs,ngModel){
+              ngModel.$setViewValue('nisdhasid')
+              console.log(ngModel)
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
