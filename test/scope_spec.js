@@ -45,6 +45,34 @@ describe("digest", function() {
     expect(scope.counter).toBe(2);
   });
 
+  it("triggers chained watchers in the same digest", function() { 
+    scope.name = 'Jane';
+    scope.$watch(
+      function(scope) { 
+        return scope.nameUpper; 
+      }, 
+      function(newValue, oldValue, scope) {
+        if (newValue) {
+          scope.initial = newValue.substring(0, 1) + '.';
+        }
+      }
+    );
+    scope.$watch(
+      function(scope) { 
+        return scope.name; 
+      }, function(newValue, oldValue, scope) {
+        if (newValue) {
+          scope.nameUpper = newValue.toUpperCase();
+        } 
+      }
+    );
+    scope.$digest();
+    expect(scope.initial).toBe('J.');
+    scope.name = 'Bob';
+    scope.$digest();
+    expect(scope.initial).toBe('B.');
+  });
+
   it("ends the digest when the last watch is clean", function() { 
     scope.array = _.range(100);
     var watchExecutions = 0;
@@ -91,31 +119,18 @@ describe("digest", function() {
     scope.$digest();
     expect(scope.counter).toBe(2);
   });
-  // it("triggers chained watchers in the same digest", function() { 
-  //   scope.name = 'Jane';
-  //   scope.$watch(
-  //     function(scope) { 
-  //       return scope.nameUpper; 
-  //     }, 
-  //     function(newValue, oldValue, scope) {
-  //       if (newValue) {
-  //         scope.initial = newValue.substring(0, 1) + '.';
-  //       }
-  //     }
-  //   );
-  //   scope.$watch(
-  //     function(scope) { 
-  //       return scope.name; 
-  //     }, function(newValue, oldValue, scope) {
-  //       if (newValue) {
-  //         scope.nameUpper = newValue.toUpperCase();
-  //       } 
-  //     }
-  //   );
-  //   scope.$digest();
-  //   expect(scope.initial).toBe('J.');
-  //   scope.name = 'Bob';
-  //   scope.$digest();
-  //   expect(scope.initial).toBe('B.');
-  // });
+
+  it('allows async $apply with $applyAsync', function(done) { 
+    scope.counter = 0;
+    scope.$watch(
+      function(scope) { return scope.aValue; }, 
+      function(newValue, oldValue, scope) {scope.counter++;}
+    );
+    scope.$digest();
+    expect(scope.counter).toBe(1);
+    scope.$applyAsync(function(scope) { scope.aValue = 'abc';});
+    expect(scope.counter).toBe(1);
+    setTimeout(function() { expect(scope.counter).toBe(2); done();}, 50);
+  });
+  
 });
