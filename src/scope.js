@@ -232,3 +232,16 @@ Scope.prototype.$destory = function() {
     }
     this.$$watcher = [];
 }
+
+/**
+ * ch3 Watching Collections
+ */
+Scope.prototype.$watchCollection = function() {
+    var internalWatchFn = function(scope) {
+
+    }
+    var internalListenerFn = function(scope) {
+
+    }
+    return this.$watch(internalWatchFn, internalListenerFn);
+}
