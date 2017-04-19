@@ -1,6 +1,6 @@
 /**
  * ch1 Scope
- * 忽略了watcher销毁
+ * watcher销毁略过
  */
 // Scope类
 function Scope() {
@@ -236,12 +236,97 @@ Scope.prototype.$destory = function() {
 /**
  * ch3 Watching Collections
  */
-Scope.prototype.$watchCollection = function() {
+Scope.prototype.$watchCollection = function(watchFn, listenerFn) {
+    var self = this;
+    var newValue;
+    var oldValue;
+    var veryOldValue;
+    var trackVeryOldValue = (listenerFn.length > 1);
+    var changeCount = 0;
+    var firstRun = true;
+
     var internalWatchFn = function(scope) {
+        newValue = watchFn(scope);
+        // object分支：包括object和array
+        if (_.isObject(newValue)) {
+            // array分支
+            if (_.isArray(newValue)) {
+                // oldValue不是数组，即改变了
+                if (!_.isArray(oldValue)) {
+                    changeCount++;
+                    oldValue = [];
+                }
+                if (oldValue.length !== newValue.length) {
+                    changeCount++;
+                    oldValue.length = newValue.length;
+                }
+                // 对比数组每一项
+                for (var i = 0; i < oldValue.length; i++) {
+                    var bothNaN = _.isNaN(newValue[i]) && _.isNaN(oldValue[i]);
+                    if (!bothNaN && oldValue[i] !== newValue[i]) {
+                        changeCount++;
+                        oldValue[i] = newValue[i];
+                    }
+                }
+            } else { // 除array以外分支
+                // 给object增加一个length，neLength和oldLength
+                if (!_.isObject(oldValue) || _.isArrayLike(oldValue)) {
+                    changeCount++;
+                    oldValue = {};
+                    oldLength = 0;
+                }
+                newLength = 0;
+                // 对比object属性的改变
+                _.forOwn(newValue, function(newVal, key) {
+                    newLength++;
+                    if (oldValue.hasOwnProperty(key)) {
+                        var bothNaN = _.isNaN(newVal) && _.isNaN(oldValue[key]);
+                        if (!bothNaN && oldValue[key] !== newVal) {
+                            changeCount++;
+                            oldValue[key] = newVal;
+                        }
+                    } else {
+                        oldLength++;
+                        changeCount++;
+                        oldValue[key] = newVal;
+                    }
+                });
+                // 对比object属性的增减
+                if (newLength < oldLength) {
+                    changeCount++;
+                    _.forOwn(oldValue, function(oldVal, key) {
+                        if (!newValue.hasOwnProperty(key)) {
+                            oldLength--;
+                            delete oldValue[key];
+                        }
+                    });
+                }
+            }
+        } else { // 除去object以外分支
+            if (!self.$$areEqual(newValue, oldValue, false)) {
+                changeCount++;
+                oldValue = newValue;
+            }
+        }
 
+        return changeCount;
     }
-    var internalListenerFn = function(scope) {
-
-    }
+    var internalListenerFn = function() {
+        if (firstRun) {
+            listenerFn(newValue, newValue, self);
+            firstRun = false;
+        } else {
+            listenerFn(newValue, veryOldValue, self);
+        }
+        if (trackVeryOldValue) {
+            veryOldValue = _.clone(newValue);
+        }
+    };
     return this.$watch(internalWatchFn, internalListenerFn);
 }
+
+
+/**
+ * ch4 Scope Events
+ * 
+ */
