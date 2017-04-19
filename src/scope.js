@@ -205,6 +205,7 @@ Scope.prototype.$new = function(isolated, parent) {
         child = new ChildScope();
     }
     parent.$$children.push(child); // 在当前scope上$new的独立作用域也是子作用域，只是没有继承关系
+    child.$parent = parent; // 将parent scope记录在$parent变量上
     child.$$watchers = []; // 隔离watchers
     child.$$children = [];
     return child;
@@ -221,3 +222,13 @@ Scope.prototype.$$everyScope = function(fn) {
         return false;
     }
 };
+
+// 销毁scope
+Scope.prototype.$destory = function() {
+    var siblings = this.$parent.$$children;
+    var indexOfThis = siblings.indexOf(this);
+    if (indexOfThis > 0) {
+        siblings.splice(indexOfThis, 1);
+    }
+    this.$$watcher = [];
+}
