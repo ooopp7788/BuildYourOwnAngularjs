@@ -359,7 +359,6 @@ Scope.prototype.$emit = function(eventName) {
     var event = {
         name: eventName,
         targetScope: this,
-        // 阻止冒泡
         stopPropagation: function() {
             propagationStopped = true;
         },
@@ -367,12 +366,10 @@ Scope.prototype.$emit = function(eventName) {
             event.defaultPrevented = true;
         }
     };
-    // 除开eventName之外的参数
-    var listenerArgs = [event].concat(_.rest(arguments));
     var scope = this;
     do {
         event.currentScope = scope;
-        scope.$$fireEventOnScope(eventName, listenerArgs);
+        scope.$$fireEventOnScope(eventName, event);
         scope = scope.$parent;
     } while (scope && !propagationStopped);
     return event;
@@ -386,10 +383,9 @@ Scope.prototype.$broadcast = function(eventName) {
             event.defaultPrevented = true;
         }
     };
-    var listenerArgs = [event].concat(_.rest(arguments));
     this.$$everyScope(function(scope) {
         event.currentScope = scope;
-        scope.$$fireEventOnScope(eventName, listenerArgs);
+        scope.$$fireEventOnScope(eventName, event);
         return true;
     });
     return event;
