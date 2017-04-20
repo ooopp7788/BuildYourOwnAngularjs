@@ -308,6 +308,7 @@ describe("Events", function() {
     var scope;
     var child;
     var isolatedChild;
+
     beforeEach(function() {
         parent = new Scope();
         scope = parent.$new();
@@ -326,5 +327,49 @@ describe("Events", function() {
             someEvent: [listener1, listener2],
             someOtherEvent: [listener3]
         });
+    });
+
+    _.forEach(['$emit', '$broadcast'], function(method) {
+
+        it("can be deregistered " + method, function() {
+            var listener = jasmine.createSpy();
+            var deregister = scope.$on(someEvent, listener);
+            deregister();
+            scope[method](someEvent);
+            expect(listener).not.toHaveBeenCalled();
+        });
+
+        it("does not skip the next listener when removed on " + method, function() {
+            var deregister;
+            var listener = function() {
+                deregister();
+            };
+            var nextListener = jasmine.createSpy();
+            deregister = scope.$on(someEvent, listener);
+            scope.$on(someEvent, nextListener);
+            scope[method](someEvent);
+            expect(nextListener).toHaveBeenCalled();
+        });
+
+    });
+
+    it("propagates up the scope hierarchy on $emit", function() {
+        var parentListener = jasmine.createSpy();
+        var scopeListener = jasmine.createSpy();
+        parent.$on(someEvent, parentListener);
+        scope.$on(someEvent, scopeListener);
+        scope.$emit(someEvent);
+        expect(scopeListener).toHaveBeenCalled();
+        expect(parentListener).toHaveBeenCalled();
+    });
+
+    it("attaches targetScope on $emit", function() {
+        var scopeListener = jasmine.createSpy();
+        var parentListener = jasmine.createSpy();
+        scope.$on(someEvent, scopeListener);
+        parent.$on(someEvent, parentListener);
+        scope.$emit(someEvent);
+        expect(scopeListener.calls.mostRecent().args[0].targetScope).toBe(scope);
+        expect(parentListener.calls.mostRecent().args[0].targetScope).toBe(scope);
     });
 });

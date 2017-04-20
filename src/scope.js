@@ -12,6 +12,7 @@ function Scope() {
     this.$$phase = null; // scope所处的阶段，$digest $apply 或者 null
     this.$$children = []; // 子作用域
     this.$root = this; // 根作用域，在new Scope的时候建立，继承的时候不会改变它
+    this.$$listeners = {}; // 事件系统，储存事件对象
 }
 // 用函数表示初始值是独一无二的，不会与任何值相等
 function initWatchVal() {}
@@ -208,10 +209,11 @@ Scope.prototype.$new = function(isolated, parent) {
     child.$parent = parent; // 将parent scope记录在$parent变量上
     child.$$watchers = []; // 隔离watchers
     child.$$children = [];
+    child.$$listeners = {}; // 子scope初始化属性$$listeners
     return child;
 };
 
-// 递归$$children，遍历所有的child
+// 递归$$children，遍历所有的child，逐个执行fn
 Scope.prototype.$$everyScope = function(fn) {
     // fn(this)，遍历children执行fn，如果fn中return false就跳出循环
     if (fn(this)) {
@@ -225,13 +227,15 @@ Scope.prototype.$$everyScope = function(fn) {
 
 // 销毁scope
 Scope.prototype.$destory = function() {
+    this.$broadcast('$destroy'); // 传播$destory事件，内置事件，用于传播scope销毁
     var siblings = this.$parent.$$children;
     var indexOfThis = siblings.indexOf(this);
     if (indexOfThis > 0) {
         siblings.splice(indexOfThis, 1);
     }
-    this.$$watcher = [];
-}
+    this.$$watcher = []; // 去除watcher脏检测
+    this.$$listeners = {}; // 去除事件侦听
+};
 
 /**
  * ch3 Watching Collections
@@ -310,7 +314,7 @@ Scope.prototype.$watchCollection = function(watchFn, listenerFn) {
         }
 
         return changeCount;
-    }
+    };
     var internalListenerFn = function() {
         if (firstRun) {
             listenerFn(newValue, newValue, self);
@@ -323,10 +327,87 @@ Scope.prototype.$watchCollection = function(watchFn, listenerFn) {
         }
     };
     return this.$watch(internalWatchFn, internalListenerFn);
-}
+};
 
 
 /**
  * ch4 Scope Events
  * 
  */
+/**
+ * @param {eventName}       string          事件名
+ * @param {listener}        func            监听事件的回调函数
+ */
+Scope.prototype.$on = function(eventName, listener) {
+    var listeners = this.$$listeners[eventName];
+    if (!listeners) {
+        // 事件类型作为$$listeners的属性，没有的话，将值初始化为数组
+        this.$$listeners[eventName] = listeners = [];
+    }
+    listeners.push(listener);
+    return function() {
+        var index = listeners.indexOf(listener);
+        if (index >= 0) {
+            listeners[index] = null;
+        }
+    };
+};
+
+// 从此scope到以上都会触发事件
+Scope.prototype.$emit = function(eventName) {
+    var propagationStopped = false;
+    var event = {
+        name: eventName,
+        targetScope: this,
+        // 阻止冒泡
+        stopPropagation: function() {
+            propagationStopped = true;
+        },
+        preventDefault: function() {
+            event.defaultPrevented = true;
+        }
+    };
+    // 除开eventName之外的参数
+    var listenerArgs = [event].concat(_.rest(arguments));
+    var scope = this;
+    do {
+        event.currentScope = scope;
+        scope.$$fireEventOnScope(eventName, listenerArgs);
+        scope = scope.$parent;
+    } while (scope && !propagationStopped);
+    return event;
+};
+
+Scope.prototype.$broadcast = function(eventName) {
+    var event = {
+        name: eventName,
+        targetScope: this,
+        preventDefault: function() {
+            event.defaultPrevented = true;
+        }
+    };
+    var listenerArgs = [event].concat(_.rest(arguments));
+    this.$$everyScope(function(scope) {
+        event.currentScope = scope;
+        scope.$$fireEventOnScope(eventName, listenerArgs);
+        return true;
+    });
+    return event;
+};
+
+Scope.prototype.$$fireEventOnScope = function(eventName, listenerArgs) {
+    // 事件对象，会传入回调函数listener
+    var listeners = this.$$listeners[eventName] || [];
+    var i = 0;
+    while (i < listeners.length) {
+        if (listeners[i] === null) {
+            listeners.splice(i, 1);
+        } else {
+            try {
+                listeners[i].apply(null, listenerArgs);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    }
+};
