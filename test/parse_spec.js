@@ -10,4 +10,28 @@ describe("parse", function() {
         expect(fn()).toBe(0.42);
         expect(intFn()).toBe(123);
     });
+
+    it("can parse a string in single quotes", function() {
+        var fn = parse('"abc"');
+        expect(fn()).toEqual('abc');
+    });
+    it("can parse a string in double quotes", function() {
+        var fn = parse("'abc'");
+        expect(fn()).toEqual('abc');
+    });
+
+    it("will parse an empty array", function() {
+        var fn = parse('[]');
+        expect(fn()).toEqual([]);
+    });
+
+    it("will parse an empty object", function() {
+        var fn = parse('{}');
+        expect(fn()).toEqual({});
+    });
+
+    it("will parse a non-empty object", function() {
+        var fn = parse('{"akey": 1,\'another-key\': 2}');
+        expect(fn()).toEqual({ 'akey': 1, 'another-key': 2 });
+    });
 });
