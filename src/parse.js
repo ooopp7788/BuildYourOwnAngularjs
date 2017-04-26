@@ -25,7 +25,6 @@ Lexer.prototype.lex = function(text) {
     this.ch = undefined;
     this.tokens = [];
     while (this.index < this.text.length) {
-
         this.ch = this.text.charAt(this.index);
         // 判断的是其实位字符，只能是number和.符号，不能以- + e 开头
         if (this.isNumber(this.ch) ||
@@ -330,7 +329,6 @@ ASTCompiler.prototype.recurse = function(ast) {
             }, this);
             return '[' + elements.join(',') + ']';
         case AST.ObjectExpression:
-            console.log('ast.p:', ast.properties)
             var properties = _.map(ast.properties, function(property) {
                 var key = property.key.type === AST.Identifier ? property.key.name : self.escape(property.key.value);
                 var value = self.recurse(property.value); // value可能是所有类型，需要recurse迭代
